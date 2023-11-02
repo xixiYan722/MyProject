@@ -1,4 +1,4 @@
-Code used for the projects analysis, including our single-cell and spatial transcriptomic data processing. 
+Code used for my projects analysis, including our single-cell and spatial transcriptomic data processing. 
 
 @Author: Xixi Yan
 
