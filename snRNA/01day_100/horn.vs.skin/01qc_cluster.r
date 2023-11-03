@@ -70,7 +70,6 @@ bcmvn <- find.pK(sweep.stats)
 pK_bcmvn <- bcmvn$pK[which.max(bcmvn$BCmetric)] %>% as.character() %>% as.numeric()
 DoubletRate = ncol(all.flit.ribo)*8*1e-6
 homotypic.prop <- modelHomotypic(all.flit.ribo$RNA_snn_res.0.2)
-nExp_poi <- round(DoubletRate*ncol(day100.flit.ribo))
 nExp_poi <- round(DoubletRate*ncol(all.flit.ribo))
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 all.flit.ribo <- doubletFinder_v3(all.flit.ribo,PCs=1:20,pN=0.25,pK=pK_bcmvn,nExp=nExp_poi.adj,reuse.pANN=F,sct=F)
