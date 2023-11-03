@@ -1,72 +1,78 @@
+###QC and Cluster ###
+
+# load packages
 library(dplyr)
 library(Seurat)
 library(patchwork)
-data <- read10X("/home/yuwang/yxx/scRNA/03scRNA_197d/data")
-data <- Read10X("/home/yuwang/yxx/scRNA/03scRNA_197d/data")
-three <- CreateSeuratObject(counts = data, project = "day200_horn", min.cells = 5, min.features= 1000)
-three
-kp=mt.genes %in% rownames(three)
+library(DoubletFinder)
+
+# load dataset, including "barcodes.tsv.gz","features.tsv.gz" and "matrix.mtx.gz" of each data
+data <- Read10X("/home/../scRNA/D200horn/data")
+
+# creat seurat objects
+horn <- CreateSeuratObject(counts = data, project = "day200_horn", min.cells = 10, min.features= 1000)
+
+# calculate mitochondrial gene contenr
 mt.genes <- c("ND1","ND2","COX1","COX2","ATP8","ATP6","COX3","ND3","ND4L","ND4","ND5","CYTB","ND6")
-kp=mt.genes %in% rownames(three)
-C<-GetAssayData(object = three, slot = "counts")
+kp=mt.genes %in% rownames(horn)
+C<-GetAssayData(object = horn, slot = "counts")
 percent.mito <- Matrix::colSums(C[mt.genes,])/Matrix::colSums(C)*100
-three <- AddMetaData(three, percent.mito, col.name = "percent.mito")
-VlnPlot(three, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
-three.flit <- subset(three, subset = nFeature_RNA > 300 & nFeature_RNA < 5000 & percent.mito < 5 & nCount_RNA < 20000)
-rb.genes <- rownames(three.flit)[grep("^RP[SL]",rownames(three.flit))]
-rb.genes
-length( coi <- rownames( three.flit )[ which(rowSums(three.flit@assays$RNA@counts) > 10) ] )
+horn <- AddMetaData(horn, percent.mito, col.name = "percent.mito")
+
+# filter cells
+VlnPlot(horn, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
+horn.flit <- subset(horn, subset = nFeature_RNA > 300 & nFeature_RNA < 5000 & percent.mito < 5 & nCount_RNA < 20000)
+VlnPlot(horn.flit, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
+
+# remove the ribosome genes
+rb.genes <- rownames(horn.flit)[grep("^RP[SL]",rownames(horn.flit))]
+length( coi <- rownames( horn.flit )[ which(rowSums(horn.flit@assays$RNA@counts) > 10) ] )
 length( coi <- coi[! coi %in% rb.genes ]  )
-three.flit.ribo <- three.flit[coi,]
-three.flit.ribo <- three.flit.ribo[! rownames(three.flit.ribo) %in% rb.genes,]
-three.flit.ribo
-three.flit.ribo <- NormalizeData(three.flit.ribo, normalization.method = "LogNormalize", scale.factor = 10000)
-three.flit.ribo <- FindVariableFeatures(three.flit.ribo, selection.method = "vst", nfeatures = 2000)
-var <- VariableFeatures(object = three.flit.ribo)
-three.genes <- rownames(three.flit.ribo)
-three.flit.ribo <- ScaleData(three.flit.ribo,features =all.genes,vars.to.regress = "percent.mito")
-all.genes <- rownames(three.flit.ribo)
-three.flit.ribo <- ScaleData(three.flit.ribo,features =all.genes,vars.to.regress = "percent.mito")
+horn.flit.ribo <- horn.flit[coi,]
+horn.flit.ribo <- horn.flit.ribo[! rownames(horn.flit.ribo) %in% rb.genes,]
+
+# normalizing the data
+horn.flit.ribo <- NormalizeData(horn.flit.ribo, normalization.method = "LogNormalize", scale.factor = 10000)
+
+# identifiy the highly variable features
+horn.flit.ribo <- FindVariableFeatures(horn.flit.ribo, selection.method = "vst", nfeatures = 2000)
+var <- VariableFeatures(object = horn.flit.ribo)
+
+# scale the data
+all.genes <- rownames(horn.flit.ribo)
+horn.flit.ribo <- ScaleData(horn.flit.ribo,features = all.genes,vars.to.regress = "percent.mito")
+
+# romove contamination from the highly variable features
 none.genes <- c("HBA","HBG")
 var1 <- setdiff(var,mt.genes)
-length(var1)
 var2 <- setdiff(var1,none.genes)
-length(var2)
-three.flit.ribo <- RunPCA(three.flit.ribo, features = var2)
-ElbowPlot(three.flit.ribo,ndims=50)
-DimHeatmap(three.flit.ribo, dims = 1:25, cells = 500, balanced = TRUE)
-DimHeatmap(three.flit.ribo, dims = 1:25, cells = 1000, balanced = TRUE)
-three.flit.ribo <- RunUMAP(three.flit.ribo, dims = 1:20)
-three.flit.ribo <- FindNeighbors(three.flit.ribo, dims = 1:20)
-three.flit.ribo <- FindClusters(three.flit.ribo, resolution = seq(from =0.1,to = 1.0,by=0.1))
-library(clustree)
-clustree(three.flit.ribo)
-DimPlot(three.flit.ribo,reduction="umap",label=TRUE,group.by="RNA_snn_res.0.1")
-three.flit.ribo
-VlnPlot(three.flit, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
-DimPlot(three.flit.ribo,reduction="umap",label=TRUE,group.by="RNA_snn_res.0.1")
-DimPlot(three.flit.ribo,reduction="umap",label=TRUE,group.by="RNA_snn_res.0.2")
-three.flit1 <- subset(three, subset = nFeature_RNA > 2000 & nFeature_RNA < 5000 & percent.mito < 5 & nCount_RNA < 20000)
-three.flit1
-VlnPlot(three.flit, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
-VlnPlot(three.flit1, features = c("nFeature_RNA","nCount_RNA", "percent.mito"), ncol= 3)
-DimPlot(three.flit.ribo,reduction="umap",label=TRUE,group.by="RNA_snn_res.0.2")
-sweep.res.list <- paramSweep_v3(three.flit.ribo, PCs = 1:20, sct = FALSE)
-library(DoubletFinder)
-sweep.res.list <- paramSweep_v3(three.flit.ribo, PCs = 1:20, sct = FALSE)
+
+# perform PCA and determine the dimensionality of the dataset
+horn.flit.ribo <- RunPCA(horn.flit.ribo, features = var2)
+ElbowPlot(horn.flit.ribo,ndims=50)
+DimHeatmap(horn.flit.ribo, dims = 1:25, cells = 500, balanced = TRUE)
+
+# run UMAP and cluster cells
+horn.flit.ribo <- RunUMAP(horn.flit.ribo, dims = 1:20)
+horn.flit.ribo <- FindNeighbors(horn.flit.ribo, dims = 1:20)
+horn.flit.ribo <- FindClusters(horn.flit.ribo, resolution = seq(from =0.1,to = 1.0,by=0.1))
+
+# doublet detect and filter
+sweep.res.list <- paramSweep_v3(horn.flit.ribo, PCs = 1:20, sct = FALSE)
 sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
 bcmvn <- find.pK(sweep.stats)
 pK_bcmvn <- bcmvn$pK[which.max(bcmvn$BCmetric)] %>% as.character() %>% as.numeric()
-DoubletRate = ncol(three.flit.ribo)*8*1e-6
-homotypic.prop <- modelHomotypic(three.flit.ribo$RNA_snn_res.0.2)
-nExp_poi <- round(DoubletRate*ncol(three.flit.ribo))
+DoubletRate = ncol(horn.flit.ribo)*8*1e-6
+homotypic.prop <- modelHomotypic(horn.flit.ribo$RNA_snn_res.0.2)
+nExp_poi <- round(DoubletRate*ncol(horn.flit.ribo))
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
-three.flit.ribo <- doubletFinder_v3(three.flit.ribo,PCs=1:20,pN=0.25,pK=pK_bcmvn,nExp=nExp_poi.adj,reuse.pANN=F,sct=F)
-head(three.flit.ribo@meta.data)
-cells.sub <- subset(three.flit.ribo@meta.data,DF.classifications_0.25_0.005_1011==("Singlet"))
-three.flit.ribo.doublet <- subset(three.flit.ribo,cells=row.names(cells.sub))
-three.flit.ribo.doublet
-Idents(three.flit.ribo.doublet) <- "RNA_snn_res.0.2"
-saveRDS(three.flit.ribo.doublet,"D200.rds")
-savehisory("01qc_cluster_200d.his")
-savehistory("01qc_cluster_200d.his")
+horn.flit.ribo <- doubletFinder_v3(horn.flit.ribo,PCs=1:20,pN=0.25,pK=pK_bcmvn,nExp=nExp_poi.adj,reuse.pANN=F,sct=F)
+
+head(horn.flit.ribo@meta.data)
+cells.sub <- subset(horn.flit.ribo@meta.data, DF.classifications_0.25_0.005_665==("Singlet"))
+horn.flit.ribo.doublet <- subset(horn.flit.ribo,cells=row.names(cells.sub))
+
+# save image and rds
+saveRDS(horn.flit.ribo.doublet, "obj4.rds")
+save.image("01qc_cluster.rd")
+savehistory("01qc_cluster.r")
