@@ -30,7 +30,7 @@ levels(fib)
 new.cluster.ids=c('FIB1','FIB2','FIB3','FIB4','FIB5','FIB6','FIIB7','FIB8')
 names(new.cluster.ids) <- levels(fib)
 fib <- RenameIdents(fib, new.cluster.ids)
-fib$fibsub_celltype <- Idents(fib)
+fib$fib_celltype <- Idents(fib)
 
 # save image and rds
 saveRDS(fib, "fib.rds")
