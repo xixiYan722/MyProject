@@ -2,7 +2,7 @@
 
 
 # read the snATAC-seq data 
- ATAC100 <- readRDS('../Save-ArchR-Project.rds')
+ATAC100 <- readRDS('../Save-ArchR-Project.rds')
 
 # run UMAP and calculate the average frag of each cluster
 p1<-plotEmbedding(ArchRProj=ATAC100,colorBy="cellColData",name="Clusters",
